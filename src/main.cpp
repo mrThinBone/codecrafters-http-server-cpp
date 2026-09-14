@@ -76,10 +76,17 @@ int main(int argc, char **argv) {
   if (path == "/") {
     response = "HTTP/1.1 200 OK\r\n\r\n";
   }
+
+  else if (path.find("/echo/") == 0) {
+    std::string random = path.substr(6);
+    response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " 
+                + std::to_string(random.length()) + "\r\n\r\n" + random;
+  }
+
   else {
     response = "HTTP/1.1 404 Not Found\r\n\r\n";
   }
-  // std::string response = "HTTP/1.1 200 OK\r\n\r\n";
+
   send(client_fd, response.c_str(), response.length(), 0);
 
   close(client_fd);
