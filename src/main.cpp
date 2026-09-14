@@ -8,6 +8,53 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <sstream>
+#include <thread>
+
+void handle_client(int client_fd) {
+  char buffer[1024];
+  read(client_fd, buffer, 1024);
+  std::string request(buffer);
+  std::istringstream iss(request);
+  std::string method, path, protocol;
+
+  iss >> method >> path >> protocol;
+
+  std::string response;
+  if (path == "/") {
+    response = "HTTP/1.1 200 OK\r\n\r\n";
+  }
+
+  else if (path.find("/echo/") == 0) {
+    std::string random = path.substr(6);
+    response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " 
+                + std::to_string(random.length()) + "\r\n\r\n" + random;
+  }
+
+  else if (path.find("/user-agent") == 0) {
+    std::string user_agent = "";
+    std::string line;
+
+    std::istringstream iss(request);
+    while (std::getline(iss, line)) {
+      if (line.find("User-Agent: ") == 0) {
+        user_agent = line.substr(12);
+        if (!user_agent.empty() && user_agent.back() == '\r') {
+          user_agent.pop_back();
+        }
+      }
+    }
+    response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " 
+                + std::to_string(user_agent.length()) + "\r\n\r\n" + user_agent;
+  }
+
+  else {
+    response = "HTTP/1.1 404 Not Found\r\n\r\n";
+  }
+
+  send(client_fd, response.c_str(), response.length(), 0);
+
+  close(client_fd);    
+}
   
 int main(int argc, char **argv) {
   // Flush after every std::cout / std::cerr
@@ -54,59 +101,18 @@ int main(int argc, char **argv) {
   
   std::cout << "Waiting for a client to connect...\n";
   
-  int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+  while (true) {
+    int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
 
-  if (client_fd < 0) {
-    std::cerr << "Accept failed\n";
-    close(server_fd);
-    return 1;
-  }
-
-  std::cout << "Client connected\n";
-
-  char buffer[1024];
-  read(client_fd, buffer, 1024);
-  std::string request(buffer);
-  std::istringstream iss(request);
-  std::string method, path, protocol;
-
-  iss >> method >> path >> protocol;
-
-  std::string response;
-  if (path == "/") {
-    response = "HTTP/1.1 200 OK\r\n\r\n";
-  }
-
-  else if (path.find("/echo/") == 0) {
-    std::string random = path.substr(6);
-    response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " 
-                + std::to_string(random.length()) + "\r\n\r\n" + random;
-  }
-
-  else if (path.find("/user-agent") == 0) {
-    std::string user_agent = "";
-    std:: string line;
-
-    std::istringstream iss(request);
-    while (std::getline(iss, line)) {
-      if (line.find("User-Agent: ") == 0) {
-        user_agent = line.substr(12);
-        if (!user_agent.empty() && user_agent.back() == '\r') {
-          user_agent.pop_back();
-        }
-      }
+    if (client_fd < 0) {
+      std::cerr << "Accept failed\n";
+      continue;
     }
-    response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " 
-                + std::to_string(user_agent.length()) + "\r\n\r\n" + user_agent;
+
+    std::cout << "Client connected\n";
+    std::thread(handle_client, client_fd).detach();
   }
-
-  else {
-    response = "HTTP/1.1 404 Not Found\r\n\r\n";
-  }
-
-  send(client_fd, response.c_str(), response.length(), 0);
-
-  close(client_fd);
+  
   close(server_fd);
 
   return 0;
