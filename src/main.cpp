@@ -83,6 +83,23 @@ int main(int argc, char **argv) {
                 + std::to_string(random.length()) + "\r\n\r\n" + random;
   }
 
+  else if (path.find("/user-agent") == 0) {
+    std::string user_agent = "";
+    std:: string line;
+
+    std::istringstream iss(request);
+    while (std::getline(iss, line)) {
+      if (line.find("User-Agent: ") == 0) {
+        user_agent = line.substr(12);
+        if (!user_agent.empty() && user_agent.back() == '\r') {
+          user_agent.pop_back();
+        }
+      }
+    }
+    response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " 
+                + std::to_string(user_agent.length()) + "\r\n\r\n" + user_agent;
+  }
+
   else {
     response = "HTTP/1.1 404 Not Found\r\n\r\n";
   }
