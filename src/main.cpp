@@ -65,6 +65,7 @@ int main(int argc, char **argv) {
   std::cout << "Client connected\n";
 
   char buffer[1024];
+  read(client_fd, buffer, 1024);
   std::string request(buffer);
   std::istringstream iss(request);
   std::string method, path, protocol;
@@ -72,7 +73,7 @@ int main(int argc, char **argv) {
   iss >> method >> path >> protocol;
 
   std::string response;
-  if (path = "/") {
+  if (path == "/") {
     response = "HTTP/1.1 200 OK\r\n\r\n";
   }
   else {
