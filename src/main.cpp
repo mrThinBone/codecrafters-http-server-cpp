@@ -8,9 +8,10 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <sstream>
+#include <fstream>
 #include <thread>
 
-void handle_client(int client_fd) {
+void handle_client(int client_fd, std::string directory) {
   char buffer[1024];
   read(client_fd, buffer, 1024);
   std::string request(buffer);
@@ -45,6 +46,23 @@ void handle_client(int client_fd) {
     }
     response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " 
                 + std::to_string(user_agent.length()) + "\r\n\r\n" + user_agent;
+  }
+
+  else if (path.find("/files/") == 0) {
+    std::string file_name = path.substr(7);
+    std::string full_path = directory + file_name;
+
+    std::ifstream file(full_path);
+    if (file.good()) {
+      std::stringstream buffer;
+      buffer << file.rdbuf();
+      std::string file_content = buffer.str();
+
+      response = "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: "
+                  + std::to_string(file_content.length()) + "\r\n\r\n" + file_content;
+    }
+    else
+      response = "HTTP/1.1 404 Not Found\r\n\r\n";
   }
 
   else {
@@ -100,6 +118,11 @@ int main(int argc, char **argv) {
   int client_addr_len = sizeof(client_addr);
   
   std::cout << "Waiting for a client to connect...\n";
+
+  std::string directory = "";
+  if (argc >= 3 && std::string(argv[1]) == "--directory") {
+    directory = argv[2];
+  }
   
   while (true) {
     int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
@@ -110,7 +133,7 @@ int main(int argc, char **argv) {
     }
 
     std::cout << "Client connected\n";
-    std::thread(handle_client, client_fd).detach();
+    std::thread(handle_client, client_fd, directory).detach();
   }
   
   close(server_fd);
