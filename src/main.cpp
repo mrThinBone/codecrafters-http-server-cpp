@@ -52,17 +52,35 @@ void handle_client(int client_fd, std::string directory) {
     std::string file_name = path.substr(7);
     std::string full_path = directory + file_name;
 
-    std::ifstream file(full_path);
-    if (file.good()) {
-      std::stringstream buffer;
-      buffer << file.rdbuf();
-      std::string file_content = buffer.str();
+    if (method == "GET") {
+      std::ifstream file(full_path);
+      if (file.good()) {
+        std::stringstream buffer;
+          buffer << file.rdbuf();
+        std::string file_content = buffer.str();
 
-      response = "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: "
+        response = "HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: "
                   + std::to_string(file_content.length()) + "\r\n\r\n" + file_content;
+      }
+
+      else
+        response = "HTTP/1.1 404 Not Found\r\n\r\n";
     }
-    else
-      response = "HTTP/1.1 404 Not Found\r\n\r\n";
+
+    else if (method == "POST") {
+      size_t body_post = request.find("\r\n\r\n");
+      std::string body = "";
+
+      if (body_post != std::string::npos) {
+        body = request.substr(body_post + 4);
+      }
+
+      std::ofstream file(full_path);
+      file << body;
+      file.close();
+
+      response = "HTTP/1.1 201 Created\r\n\r\n";
+    }
   }
 
   else {
